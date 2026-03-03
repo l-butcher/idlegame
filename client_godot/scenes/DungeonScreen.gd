@@ -33,14 +33,17 @@ func _ready() -> void:
 
 
 func _on_snapshot_updated(_snapshot: Dictionary) -> void:
-	_refresh_tier_selector()
+	if _run_id == "":
+		_refresh_tier_selector()
 
 
 func _refresh_tier_selector() -> void:
 	tier_option.clear()
-	var ps: Dictionary = GameState.player_snapshot.get("player_state", {})
+	var ps: Dictionary = GameState.get_player_state()
 	var max_tier: int = int(ps.get("highest_dungeon_tier", 0)) + 1
 	max_tier = mini(max_tier, 25)
+	if max_tier < 1:
+		max_tier = 1
 	for t in range(1, max_tier + 1):
 		tier_option.add_item("Tier %d" % t, t)
 	if tier_option.item_count > 0:
@@ -70,7 +73,7 @@ func _show_rewards() -> void:
 func _on_start() -> void:
 	var backend := GameState.get_backend()
 	if backend == null:
-		push_error("No backend available")
+		GameState.log_error("No backend available")
 		return
 
 	var tier: int = tier_option.get_selected_id()
@@ -78,17 +81,20 @@ func _on_start() -> void:
 		tier = 1
 
 	start_btn.disabled = true
+	GameState.log_rpc("start_dungeon_run(%d)" % tier)
 	var result: Dictionary = await backend.start_dungeon_run(tier)
 	start_btn.disabled = false
 
-	if result.is_empty():
-		push_error("start_dungeon_run(%d) returned empty" % tier)
+	if not result is Dictionary or result.is_empty():
+		GameState.log_error("start_dungeon_run(%d) returned empty" % tier)
 		return
 
-	var run: Dictionary = result.get("run", {})
-	_run_id = run.get("id", "")
+	var run: Variant = result.get("run", {})
+	if not run is Dictionary:
+		run = {}
+	_run_id = str((run as Dictionary).get("id", ""))
 	_choice_step = 0
-	GameState.set_active_run(run)
+	GameState.set_active_run(run as Dictionary)
 
 	status_label.text = "Tier %d — In Progress" % tier
 	_build_choices()
@@ -140,13 +146,14 @@ func _on_choice(step: int, choice_key: String) -> void:
 
 	var backend := GameState.get_backend()
 	if backend == null:
-		push_error("No backend available")
+		GameState.log_error("No backend available")
 		return
 
 	var skills: Array = CHOICE_SKILLS.get(choice_key, ["attack"])
+	GameState.log_rpc("submit_run_choice(%s)" % choice_key)
 	var run: Dictionary = await backend.submit_run_choice(_run_id, choice_key, skills)
-	if run.is_empty():
-		push_error("submit_run_choice returned empty")
+	if not run is Dictionary or run.is_empty():
+		GameState.log_error("submit_run_choice returned empty")
 		return
 
 	GameState.set_active_run(run)
@@ -181,12 +188,13 @@ func _build_multiplier_buttons() -> void:
 func _on_multiplier(mult: float) -> void:
 	var backend := GameState.get_backend()
 	if backend == null:
-		push_error("No backend available")
+		GameState.log_error("No backend available")
 		return
 
+	GameState.log_rpc("submit_multiplier(%.1f)" % mult)
 	var run: Dictionary = await backend.submit_multiplier(_run_id, mult, "skill_check")
-	if run.is_empty():
-		push_error("submit_multiplier returned empty")
+	if not run is Dictionary or run.is_empty():
+		GameState.log_error("submit_multiplier returned empty")
 		return
 
 	GameState.set_active_run(run)
@@ -219,26 +227,27 @@ func _build_complete_buttons() -> void:
 func _on_complete(outcome: String) -> void:
 	var backend := GameState.get_backend()
 	if backend == null:
-		push_error("No backend available")
+		GameState.log_error("No backend available")
 		return
 
 	for child in complete_container.get_children():
 		if child is Button:
 			child.disabled = true
 
+	GameState.log_rpc("complete_dungeon_run(%s)" % outcome)
 	var result: Dictionary = await backend.complete_dungeon_run(_run_id, outcome)
-	if result.is_empty():
-		push_error("complete_dungeon_run returned empty")
+	if not result is Dictionary or result.is_empty():
+		GameState.log_error("complete_dungeon_run returned empty")
 		return
 
-	var rewards: Array = result.get("rewards", [])
-	var snapshot: Dictionary = result.get("snapshot", {})
+	var rewards: Variant = result.get("rewards", [])
+	var snapshot: Variant = result.get("snapshot", {})
 
-	GameState.set_rewards(rewards)
-	GameState.set_snapshot(snapshot)
+	GameState.set_rewards(rewards if rewards is Array else [])
+	GameState.set_snapshot(snapshot if snapshot is Dictionary else {})
 	_run_id = ""
 
-	_populate_rewards(rewards, outcome)
+	_populate_rewards(rewards if rewards is Array else [], outcome)
 	_show_rewards()
 
 
@@ -258,24 +267,28 @@ func _populate_rewards(rewards: Array, outcome: String) -> void:
 		rewards_list.add_child(none_lbl)
 	else:
 		for r in rewards:
+			if not r is Dictionary:
+				continue
 			var lbl := Label.new()
 			var tag: String = ""
 			if r.has("type"):
-				tag = " [%s]" % r.type
-			lbl.text = "  %s x%d%s" % [r.get("item_id", "?"), int(r.get("quantity", 0)), tag]
+				tag = " [%s]" % str(r.type)
+			lbl.text = "  %s x%d%s" % [str(r.get("item_id", "?")), int(r.get("quantity", 0)), tag]
 			rewards_list.add_child(lbl)
 
-	var ps: Dictionary = GameState.player_snapshot.get("player_state", {})
+	var combat: Array = GameState.get_combat_skills()
 	var skills_lbl := Label.new()
-	var combat: Array = GameState.player_snapshot.get("combat_skills", [])
 	var skill_text := ""
 	for sk in combat:
+		if not sk is Dictionary:
+			continue
 		if skill_text != "":
 			skill_text += ", "
-		skill_text += "%s L%d (%d xp)" % [sk.get("skill_id", "?"), int(sk.get("level", 1)), int(sk.get("xp", 0))]
-	skills_lbl.text = "Combat: %s" % skill_text
+		skill_text += "%s L%d (%d xp)" % [str(sk.get("skill_id", "?")), int(sk.get("level", 1)), int(sk.get("xp", 0))]
+	skills_lbl.text = "Combat: %s" % (skill_text if skill_text != "" else "—")
 	rewards_list.add_child(skills_lbl)
 
+	var ps: Dictionary = GameState.get_player_state()
 	var tier_lbl := Label.new()
 	tier_lbl.text = "Highest tier: %d" % int(ps.get("highest_dungeon_tier", 0))
 	rewards_list.add_child(tier_lbl)
