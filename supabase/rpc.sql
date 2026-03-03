@@ -934,3 +934,35 @@ BEGIN
     );
 END;
 $$;
+
+-- ────────────────────────────────────────────────────────────
+-- 4e) rpc_abandon_dungeon_run
+-- ────────────────────────────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION rpc_abandon_dungeon_run(p_run_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    _uid uuid := auth.uid();
+    _run record;
+BEGIN
+    PERFORM set_config('search_path', 'public', true);
+    IF _uid IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
+
+    SELECT * INTO _run FROM dungeon_runs WHERE id = p_run_id AND user_id = _uid FOR UPDATE;
+    IF _run IS NULL THEN RAISE EXCEPTION 'Run not found'; END IF;
+    IF _run.status <> 'in_progress' THEN RAISE EXCEPTION 'Run is not in progress'; END IF;
+
+    UPDATE dungeon_runs
+       SET status = 'abandoned', completed_at = now()
+     WHERE id = p_run_id;
+
+    RETURN jsonb_build_object(
+        'run_id', p_run_id,
+        'status', 'abandoned'
+    );
+END;
+$$;
