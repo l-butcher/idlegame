@@ -1,0 +1,89 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/DungeonScreen.gd" id="1"]
+
+[node name="DungeonScreen" type="ScrollContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+script = ExtResource("1")
+
+[node name="Root" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="Header" type="Label" parent="Root"]
+layout_mode = 2
+text = "Dungeon"
+horizontal_alignment = 1
+
+[node name="SetupPanel" type="PanelContainer" parent="Root"]
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="Root/SetupPanel"]
+layout_mode = 2
+
+[node name="TierRow" type="HBoxContainer" parent="Root/SetupPanel/VBox"]
+layout_mode = 2
+
+[node name="TierLabel" type="Label" parent="Root/SetupPanel/VBox/TierRow"]
+layout_mode = 2
+text = "Tier:"
+
+[node name="TierOption" type="OptionButton" parent="Root/SetupPanel/VBox/TierRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="StartBtn" type="Button" parent="Root/SetupPanel/VBox"]
+layout_mode = 2
+text = "Start Run"
+
+[node name="RunPanel" type="PanelContainer" parent="Root"]
+layout_mode = 2
+visible = false
+
+[node name="VBox" type="VBoxContainer" parent="Root/RunPanel"]
+layout_mode = 2
+
+[node name="StatusLabel" type="Label" parent="Root/RunPanel/VBox"]
+layout_mode = 2
+text = "Run in progress..."
+
+[node name="ChoicesLabel" type="Label" parent="Root/RunPanel/VBox"]
+layout_mode = 2
+text = "Choices:"
+
+[node name="ChoicesContainer" type="VBoxContainer" parent="Root/RunPanel/VBox"]
+layout_mode = 2
+
+[node name="MultLabel" type="Label" parent="Root/RunPanel/VBox"]
+layout_mode = 2
+text = "Multiplier:"
+
+[node name="MultContainer" type="HBoxContainer" parent="Root/RunPanel/VBox"]
+layout_mode = 2
+
+[node name="CompleteLabel" type="Label" parent="Root/RunPanel/VBox"]
+layout_mode = 2
+text = "Finish Run:"
+
+[node name="CompleteContainer" type="HBoxContainer" parent="Root/RunPanel/VBox"]
+layout_mode = 2
+
+[node name="RewardsPanel" type="PanelContainer" parent="Root"]
+layout_mode = 2
+visible = false
+
+[node name="VBox" type="VBoxContainer" parent="Root/RewardsPanel"]
+layout_mode = 2
+
+[node name="RewardsTitle" type="Label" parent="Root/RewardsPanel/VBox"]
+layout_mode = 2
+text = "Rewards:"
+
+[node name="RewardsList" type="VBoxContainer" parent="Root/RewardsPanel/VBox"]
+layout_mode = 2
+
+[node name="NewRunBtn" type="Button" parent="Root/RewardsPanel/VBox"]
+layout_mode = 2
+text = "Start New Run"
