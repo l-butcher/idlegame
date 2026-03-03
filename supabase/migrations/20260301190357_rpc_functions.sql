@@ -57,6 +57,7 @@ CREATE OR REPLACE FUNCTION _build_player_snapshot(p_uid uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     _result jsonb;
@@ -64,24 +65,27 @@ BEGIN
     PERFORM set_config('search_path', 'public', true);
 
     SELECT jsonb_build_object(
-        'profile',
-            (SELECT to_jsonb(p) FROM profiles p WHERE p.user_id = p_uid),
         'player_state',
-            (SELECT to_jsonb(ps) FROM player_state ps WHERE ps.user_id = p_uid),
+            coalesce((
+                SELECT to_jsonb(ps) || jsonb_build_object('display_name', p.display_name)
+                  FROM player_state ps
+                  JOIN profiles p ON p.user_id = ps.user_id
+                 WHERE ps.user_id = p_uid
+            ), '{}'::jsonb),
         'bases',
             coalesce((
-                SELECT jsonb_agg(jsonb_build_object(
-                    'base', to_jsonb(pb),
-                    'inventory', coalesce((
-                        SELECT jsonb_agg(to_jsonb(bi))
-                          FROM base_inventory bi WHERE bi.base_id = pb.id
-                    ), '[]'::jsonb),
-                    'storage_caps', coalesce((
-                        SELECT jsonb_agg(to_jsonb(sc))
-                          FROM base_storage_caps sc WHERE sc.base_id = pb.id
-                    ), '[]'::jsonb)
-                ) ORDER BY pb.unlocked_at)
-                FROM player_bases pb WHERE pb.user_id = p_uid
+                SELECT jsonb_agg(to_jsonb(pb) ORDER BY pb.unlocked_at)
+                  FROM player_bases pb WHERE pb.user_id = p_uid
+            ), '[]'::jsonb),
+        'inventories',
+            coalesce((
+                SELECT jsonb_agg(to_jsonb(bi))
+                  FROM base_inventory bi WHERE bi.user_id = p_uid
+            ), '[]'::jsonb),
+        'caps',
+            coalesce((
+                SELECT jsonb_agg(to_jsonb(sc))
+                  FROM base_storage_caps sc WHERE sc.user_id = p_uid
             ), '[]'::jsonb),
         'production_skills',
             coalesce((SELECT jsonb_agg(to_jsonb(sk) ORDER BY sk.skill_id)
@@ -90,7 +94,7 @@ BEGIN
             coalesce((SELECT jsonb_agg(to_jsonb(ck) ORDER BY ck.skill_id)
               FROM combat_skills ck WHERE ck.user_id = p_uid), '[]'::jsonb),
         'ship', jsonb_build_object(
-            'info', (SELECT to_jsonb(sh) FROM player_ship sh WHERE sh.user_id = p_uid),
+            'info', coalesce((SELECT to_jsonb(sh) FROM player_ship sh WHERE sh.user_id = p_uid), '{}'::jsonb),
             'parts', coalesce((SELECT jsonb_agg(to_jsonb(sp))
               FROM player_ship_parts sp WHERE sp.user_id = p_uid), '[]'::jsonb),
             'equipped', coalesce((SELECT jsonb_agg(to_jsonb(se))
@@ -102,10 +106,12 @@ BEGIN
             coalesce((SELECT jsonb_agg(to_jsonb(u))
               FROM player_unlocks u WHERE u.user_id = p_uid), '[]'::jsonb),
         'active_run',
-            (SELECT to_jsonb(dr)
-               FROM dungeon_runs dr
-              WHERE dr.user_id = p_uid AND dr.status = 'in_progress'
-              LIMIT 1)
+            coalesce((
+                SELECT to_jsonb(dr)
+                  FROM dungeon_runs dr
+                 WHERE dr.user_id = p_uid AND dr.status = 'in_progress'
+                 LIMIT 1
+            ), '{}'::jsonb)
     ) INTO _result;
 
     RETURN _result;
@@ -120,6 +126,7 @@ CREATE OR REPLACE FUNCTION rpc_bootstrap_player()
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     _uid     uuid := auth.uid();
@@ -187,6 +194,7 @@ CREATE OR REPLACE FUNCTION rpc_get_player_snapshot()
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     _uid uuid := auth.uid();
