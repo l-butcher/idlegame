@@ -1,0 +1,56 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/Main.gd" id="1"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TopBar" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+
+[node name="BaseBtn" type="Button" parent="VBox/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Base"
+
+[node name="DungeonBtn" type="Button" parent="VBox/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Dungeon"
+
+[node name="Content" type="PanelContainer" parent="VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="DebugPanel" type="PanelContainer" parent="VBox"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 80)
+
+[node name="VBox" type="VBoxContainer" parent="VBox/DebugPanel"]
+layout_mode = 2
+
+[node name="RpcLabel" type="Label" parent="VBox/DebugPanel/VBox"]
+layout_mode = 2
+text = "Last RPC: —"
+
+[node name="ErrorLabel" type="Label" parent="VBox/DebugPanel/VBox"]
+layout_mode = 2
+text = "Last Error: —"
+
+[node name="RewardsLabel" type="Label" parent="VBox/DebugPanel/VBox"]
+layout_mode = 2
+text = "Last Rewards: —"
