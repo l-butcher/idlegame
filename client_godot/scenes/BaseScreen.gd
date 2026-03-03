@@ -1,7 +1,5 @@
 extends VBoxContainer
 
-var backend: Backend
-
 @onready var tier_label: Label = $TierLabel
 @onready var bases_list: VBoxContainer = $Scroll/BasesList
 @onready var claim_all_btn: Button = $ClaimAllBtn
@@ -75,16 +73,28 @@ func _refresh(snapshot: Dictionary) -> void:
 
 
 func _on_claim_base(base_type: String) -> void:
+	var backend := GameState.get_backend()
+	if backend == null:
+		push_error("No backend available")
+		return
 	claim_all_btn.disabled = true
-	var result: Dictionary = backend.claim_all(base_type)
-	var snapshot: Dictionary = result.get("snapshot", {})
-	GameState.set_snapshot(snapshot)
+	var result: Dictionary = await backend.claim_all(base_type)
+	if result.is_empty():
+		push_error("claim_all(%s) returned empty" % base_type)
+	else:
+		GameState.set_snapshot(result.get("snapshot", {}))
 	claim_all_btn.disabled = false
 
 
 func _on_claim_all() -> void:
+	var backend := GameState.get_backend()
+	if backend == null:
+		push_error("No backend available")
+		return
 	claim_all_btn.disabled = true
-	var result: Dictionary = backend.claim_all(null)
-	var snapshot: Dictionary = result.get("snapshot", {})
-	GameState.set_snapshot(snapshot)
+	var result: Dictionary = await backend.claim_all(null)
+	if result.is_empty():
+		push_error("claim_all(null) returned empty")
+	else:
+		GameState.set_snapshot(result.get("snapshot", {}))
 	claim_all_btn.disabled = false

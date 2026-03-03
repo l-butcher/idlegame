@@ -1,6 +1,5 @@
 extends Control
 
-var backend: Backend
 var base_screen_scene := preload("res://scenes/BaseScreen.tscn")
 var dungeon_screen_scene := preload("res://scenes/DungeonScreen.tscn")
 
@@ -12,14 +11,18 @@ var _current_screen: Control = null
 
 
 func _ready() -> void:
-	backend = MockBackend.new()
+	var backend := MockBackend.new()
+	GameState.set_backend(backend)
 
 	base_btn.pressed.connect(_show_base_screen)
 	dungeon_btn.pressed.connect(_show_dungeon_screen)
 
-	var snapshot: Dictionary = backend.bootstrap_player()
-	GameState.set_snapshot(snapshot)
+	var snapshot: Dictionary = await backend.bootstrap_player()
+	if snapshot.is_empty():
+		push_error("bootstrap_player returned empty snapshot")
+		return
 
+	GameState.set_snapshot(snapshot)
 	_show_base_screen()
 
 
@@ -29,7 +32,6 @@ func _switch_screen(scene: PackedScene) -> void:
 		_current_screen = null
 
 	var instance: Control = scene.instantiate()
-	instance.backend = backend
 	content.add_child(instance)
 	_current_screen = instance
 

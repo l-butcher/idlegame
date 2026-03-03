@@ -10,6 +10,16 @@ var player_snapshot: Dictionary = {}
 var active_run: Dictionary = {}
 var last_rewards: Array = []
 
+var _backend: Backend = null
+
+
+func set_backend(b: Backend) -> void:
+	_backend = b
+
+
+func get_backend() -> Backend:
+	return _backend
+
 
 func set_snapshot(snapshot: Dictionary) -> void:
 	player_snapshot = snapshot

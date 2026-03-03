@@ -1,7 +1,5 @@
 extends ScrollContainer
 
-var backend: Backend
-
 @onready var setup_panel: PanelContainer = $Root/SetupPanel
 @onready var tier_option: OptionButton = $Root/SetupPanel/VBox/TierRow/TierOption
 @onready var start_btn: Button = $Root/SetupPanel/VBox/StartBtn
@@ -70,13 +68,22 @@ func _show_rewards() -> void:
 # ── start ────────────────────────────────────────────────────
 
 func _on_start() -> void:
+	var backend := GameState.get_backend()
+	if backend == null:
+		push_error("No backend available")
+		return
+
 	var tier: int = tier_option.get_selected_id()
 	if tier <= 0:
 		tier = 1
 
 	start_btn.disabled = true
-	var result: Dictionary = backend.start_dungeon_run(tier)
+	var result: Dictionary = await backend.start_dungeon_run(tier)
 	start_btn.disabled = false
+
+	if result.is_empty():
+		push_error("start_dungeon_run(%d) returned empty" % tier)
+		return
 
 	var run: Dictionary = result.get("run", {})
 	_run_id = run.get("id", "")
@@ -131,8 +138,17 @@ func _on_choice(step: int, choice_key: String) -> void:
 	if step != _choice_step:
 		return
 
+	var backend := GameState.get_backend()
+	if backend == null:
+		push_error("No backend available")
+		return
+
 	var skills: Array = CHOICE_SKILLS.get(choice_key, ["attack"])
-	var run: Dictionary = backend.submit_run_choice(_run_id, choice_key, skills)
+	var run: Dictionary = await backend.submit_run_choice(_run_id, choice_key, skills)
+	if run.is_empty():
+		push_error("submit_run_choice returned empty")
+		return
+
 	GameState.set_active_run(run)
 
 	var row: HBoxContainer = choices_container.get_child(step) as HBoxContainer
@@ -163,7 +179,16 @@ func _build_multiplier_buttons() -> void:
 
 
 func _on_multiplier(mult: float) -> void:
-	var run: Dictionary = backend.submit_multiplier(_run_id, mult, "skill_check")
+	var backend := GameState.get_backend()
+	if backend == null:
+		push_error("No backend available")
+		return
+
+	var run: Dictionary = await backend.submit_multiplier(_run_id, mult, "skill_check")
+	if run.is_empty():
+		push_error("submit_multiplier returned empty")
+		return
+
 	GameState.set_active_run(run)
 	status_label.text = "Tier — Multiplier set to %dx" % int(mult)
 
@@ -192,11 +217,20 @@ func _build_complete_buttons() -> void:
 
 
 func _on_complete(outcome: String) -> void:
+	var backend := GameState.get_backend()
+	if backend == null:
+		push_error("No backend available")
+		return
+
 	for child in complete_container.get_children():
 		if child is Button:
 			child.disabled = true
 
-	var result: Dictionary = backend.complete_dungeon_run(_run_id, outcome)
+	var result: Dictionary = await backend.complete_dungeon_run(_run_id, outcome)
+	if result.is_empty():
+		push_error("complete_dungeon_run returned empty")
+		return
+
 	var rewards: Array = result.get("rewards", [])
 	var snapshot: Dictionary = result.get("snapshot", {})
 
